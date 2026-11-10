@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookstore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+<main class="container my-4" id="main"></main>
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+
+App.layout(false);
+var main = document.getElementById('main');
+
+if (App.isLoggedIn()) { App.redirect('index.html'); return; }
+function render(errors) {
+    main.innerHTML = '<div class="row justify-content-center"><div class="col-md-6 col-lg-4"><div class="card shadow-sm">' +
+        '<div class="card-header text-center bg-primary text-white"><h4 class="mb-0"><i class="bi bi-person-plus"></i> Daftar Akun</h4></div><div class="card-body">' +
+        App.alertList('danger', errors, false) +
+        '<form id="regForm" novalidate>' +
+        '<div class="mb-3"><label class="form-label">Nama Lengkap</label><input type="text" name="name" class="form-control" placeholder="Nama lengkap" required autofocus></div>' +
+        '<div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" placeholder="contoh@email.com" required></div>' +
+        '<div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" placeholder="Minimal 6 karakter" required></div>' +
+        '<div class="mb-3"><label class="form-label">Konfirmasi Password</label><input type="password" name="confirm" class="form-control" placeholder="Ulangi password" required></div>' +
+        '<button type="submit" class="btn btn-primary w-100">Daftar</button></form>' +
+        '<div class="text-center mt-3"><small>Sudah punya akun? <a href="login.html">Login di sini</a></small></div></div></div></div></div>';
+    document.getElementById('regForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = this.elements['name'].value.trim(), email = this.email.value.trim(), pw = this.password.value, cf = this.confirm.value, errs = [];
+        if (!name) errs.push('Nama lengkap wajib diisi.');
+        if (!email) errs.push('Email wajib diisi.');
+        else if (!App.validEmail(email)) errs.push('Format email tidak valid.');
+        if (!pw) errs.push('Password wajib diisi.');
+        if (pw !== cf) errs.push('Konfirmasi password tidak cocok.');
+        var d = App.db();
+        if (!errs.length && d.users.some(function (u) { return u.email.toLowerCase() === email.toLowerCase(); }))
+            errs.push('Email sudah terdaftar. Silakan login.');
+        if (errs.length) { render(errs); return; }
+        d.users.push({ id: App.nextId('users'), name: name, email: email, password: App.hashPw(pw), role: 'user', created_at: new Date().toISOString() });
+        App.save();
+        App.setFlash('message', 'Registrasi berhasil! Silakan login.');
+        App.redirect('login.html');
+    });
+}
+render([]);
+
+})();
+</script>
+</body>
+</html>

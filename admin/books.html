@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Bookstore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+<div class="container-fluid my-4" id="main"></div>
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/app.js"></script>
+<script>
+(function () {
+if (!App.isAdmin()) { App.redirect("login.html"); return; }
+App.layout(true);
+var main = document.getElementById('main');
+
+var q = new URLSearchParams(location.search);
+var st = { action: q.get('action') || 'list', success: '', errors: [] };
+var d = App.db();
+var editBook = null;
+if (st.action === 'edit') { editBook = App.byId(d.books, parseInt(q.get('id'), 10) || 0); if (!editBook) st.action = 'list'; }
+
+function render() {
+    var edit = st.action === 'edit';
+    var cats = d.categories.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var books = d.books.slice().sort(function (a, b) { return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : a.id - b.id; });
+    var rows = books.length ? books.map(function (b, i) {
+        return '<tr><td>' + (i + 1) + '</td><td><img src="' + App.imgSrc(b.image, '../') + '" alt="' + App.esc(b.title) + '" style="max-height: 60px;"></td>' +
+            '<td>' + App.esc(b.title) + '</td><td>' + App.esc(b.author) + '</td><td>' + App.esc(App.catName(b.category_id)) + '</td><td>' + App.rp(b.price) + '</td>' +
+            '<td class="text-center table-actions"><a href="books.html?action=edit&id=' + b.id + '" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>' +
+            '<a href="#" data-del="' + b.id + '" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></a></td></tr>';
+    }).join('') : '<tr><td colspan="7" class="text-center text-muted">Belum ada buku.</td></tr>';
+
+    main.innerHTML = '<h1 class="mb-4"><i class="bi bi-book"></i> Kelola Buku</h1>' + App.alertOk(st.success) + App.alertList('danger', st.errors, true) +
+        '<div class="card shadow-sm mb-4"><div class="card-header"><h5 class="mb-0"><i class="bi bi-' + (edit ? 'pencil' : 'plus') + '"></i> ' + (edit ? 'Edit Buku' : 'Tambah Buku Baru') + '</h5></div>' +
+        '<div class="card-body"><form id="bookForm"><div class="row g-3">' +
+        '<div class="col-md-6"><label class="form-label">Judul *</label><input type="text" name="title" class="form-control" value="' + (edit ? App.esc(editBook.title) : '') + '" required></div>' +
+        '<div class="col-md-6"><label class="form-label">Penulis *</label><input type="text" name="author" class="form-control" value="' + (edit ? App.esc(editBook.author) : '') + '" required></div>' +
+        '<div class="col-md-6"><label class="form-label">Kategori</label><select name="category_id" class="form-select"><option value="0">-- Pilih Kategori --</option>' +
+        cats.map(function (c) { return '<option value="' + c.id + '"' + (edit && editBook.category_id == c.id ? ' selected' : '') + '>' + App.esc(c.name) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="col-md-6"><label class="form-label">Harga *</label><input type="number" name="price" class="form-control" min="0" step="1000" value="' + (edit ? editBook.price : '') + '" required></div>' +
+        '<div class="col-12"><label class="form-label">Gambar Sampul</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif">' +
+        (edit && editBook.image ? '<div class="mt-2"><img src="' + App.imgSrc(editBook.image, '../') + '" alt="Current Image" style="max-height: 80px;"></div>' : '') + '</div>' +
+        '<div class="col-12"><label class="form-label">Deskripsi *</label><textarea name="description" class="form-control" rows="4" required>' + (edit ? App.esc(editBook.description) : '') + '</textarea></div></div>' +
+        '<button type="submit" class="btn btn-primary mt-3"><i class="bi bi-save"></i> ' + (edit ? 'Perbarui' : 'Simpan') + '</button>' +
+        (edit ? ' <a href="books.html" class="btn btn-outline-secondary mt-3"><i class="bi bi-x"></i> Batal</a>' : '') + '</form></div></div>' +
+        '<div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>#</th><th>Gambar</th><th>Judul</th><th>Penulis</th><th>Kategori</th><th>Harga</th><th class="text-center">Aksi</th></tr></thead><tbody>' +
+        rows + '</tbody></table></div>';
+
+    document.getElementById('bookForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = this.elements;
+        var title = f['title'].value.trim(), author = f['author'].value.trim(), price = parseFloat(f['price'].value) || 0,
+            desc = f['description'].value.trim(), cat = parseInt(f['category_id'].value, 10) || null, file = f['image'].files[0];
+        st.errors = []; st.success = '';
+        if (!title) st.errors.push('Judul buku wajib diisi.');
+        if (!author) st.errors.push('Penulis wajib diisi.');
+        if (price <= 0) st.errors.push('Harga tidak valid.');
+        if (!desc) st.errors.push('Deskripsi wajib diisi.');
+        if (st.errors.length) { render(); return; }
+
+        function done(image) {
+            if (edit) {
+                editBook.title = title; editBook.author = author; editBook.category_id = cat; editBook.price = price; editBook.description = desc;
+                if (image) editBook.image = image;
+                st.success = 'Buku berhasil diperbarui!';
+            } else {
+                d.books.push({ id: App.nextId('books'), title: title, author: author, category_id: cat, price: price, description: desc,
+                    image: image || 'no-image.jpg', created_at: new Date().toISOString() });
+                st.success = 'Buku berhasil ditambahkan!';
+            }
+            try { App.save(); } catch (err) { st.success = ''; st.errors.push('Gagal menyimpan (penyimpanan browser penuh).'); }
+            render();
+        }
+        if (file && /\.(jpe?g|png|gif)$/i.test(file.name)) App.readImage(file, function (url) { done(url); });
+        else done(null);
+    });
+    main.querySelectorAll('[data-del]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!confirm('Hapus buku ini?')) return;
+            var id = parseInt(this.dataset.del, 10);
+            d.books = d.books.filter(function (b) { return b.id !== id; });
+            d.order_details.forEach(function (od) { if (od.book_id === id) od.book_id = null; });
+            App.save();
+            st.errors = []; st.success = 'Buku berhasil dihapus!';
+            if (edit && editBook && editBook.id === id) { st.action = 'list'; history.replaceState(null, '', 'books.html'); }
+            render();
+        });
+    });
+}
+render();
+
+})();
+</script>
+</body>
+</html>

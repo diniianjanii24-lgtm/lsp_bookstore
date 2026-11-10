@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Bookstore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+<div class="container-fluid my-4" id="main"></div>
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/app.js"></script>
+<script>
+(function () {
+if (!App.isAdmin()) { App.redirect("login.html"); return; }
+App.layout(true);
+var main = document.getElementById('main');
+
+var q = new URLSearchParams(location.search);
+var st = { action: q.get('action') || 'list', editId: parseInt(q.get('id'), 10) || 0, success: '', errors: [] };
+var d = App.db();
+var editCat = null;
+if (st.action === 'edit') { editCat = App.byId(d.categories, st.editId); if (!editCat) st.action = 'list'; }
+
+function dup(name, exceptId) {
+    return d.categories.some(function (c) { return c.name.toLowerCase() === name.toLowerCase() && c.id != exceptId; });
+}
+function render() {
+    var edit = st.action === 'edit';
+    var cats = d.categories.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var rows = cats.length ? cats.map(function (c, i) {
+        return '<tr><td>' + (i + 1) + '</td><td>' + App.esc(c.name) + '</td><td class="text-center table-actions">' +
+            '<a href="categories.html?action=edit&id=' + c.id + '" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>' +
+            '<a href="#" data-del="' + c.id + '" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></a></td></tr>';
+    }).join('') : '<tr><td colspan="3" class="text-center text-muted">Belum ada kategori.</td></tr>';
+
+    main.innerHTML = '<h1 class="mb-4"><i class="bi bi-folder"></i> Kelola Kategori</h1>' + App.alertOk(st.success) + App.alertList('danger', st.errors, true) +
+        '<div class="row"><div class="col-lg-4"><div class="card shadow-sm mb-4"><div class="card-header"><h5 class="mb-0">' +
+        '<i class="bi bi-' + (edit ? 'pencil' : 'plus') + '"></i> ' + (edit ? 'Edit Kategori' : 'Tambah Kategori') + '</h5></div><div class="card-body">' +
+        '<form id="catForm"><label class="form-label">Nama Kategori</label>' +
+        '<input type="text" name="name" class="form-control" value="' + (edit ? App.esc(editCat.name) : '') + '" placeholder="Masukkan nama kategori" required>' +
+        '<button type="submit" class="btn btn-primary mt-3 w-100"><i class="bi bi-save"></i> Simpan</button>' +
+        (edit ? '<a href="categories.html" class="btn btn-outline-secondary mt-2 w-100"><i class="bi bi-x"></i> Batal</a>' : '') +
+        '</form></div></div></div>' +
+        '<div class="col-lg-8"><div class="card shadow-sm"><div class="card-header"><h5 class="mb-0"><i class="bi bi-list-ul"></i> Daftar Kategori</h5></div>' +
+        '<div class="card-body"><table class="table table-hover"><thead class="table-light"><tr><th>#</th><th>Nama</th><th class="text-center">Aksi</th></tr></thead><tbody>' +
+        rows + '</tbody></table></div></div></div></div>';
+
+    document.getElementById('catForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = this.elements['name'].value.trim();
+        st.errors = []; st.success = '';
+        if (!name) st.errors.push('Nama kategori wajib diisi.');
+        else if (dup(name, edit ? editCat.id : 0)) st.errors.push('Kategori sudah ada.');
+        else if (edit) { editCat.name = name; App.save(); st.success = 'Kategori berhasil diperbarui!'; st.action = 'list'; history.replaceState(null, '', 'categories.html'); }
+        else { d.categories.push({ id: App.nextId('categories'), name: name }); App.save(); st.success = 'Kategori berhasil ditambahkan!'; }
+        render();
+    });
+    main.querySelectorAll('[data-del]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!confirm('Hapus kategori ini? Data buku yang terkait akan terputus.')) return;
+            var id = parseInt(this.dataset.del, 10);
+            d.categories = d.categories.filter(function (c) { return c.id !== id; });
+            d.books.forEach(function (b) { if (b.category_id === id) b.category_id = null; });
+            App.save();
+            st.errors = []; st.success = 'Kategori berhasil dihapus!';
+            if (st.action === 'edit' && editCat && editCat.id === id) { st.action = 'list'; history.replaceState(null, '', 'categories.html'); }
+            render();
+        });
+    });
+}
+render();
+
+})();
+</script>
+</body>
+</html>

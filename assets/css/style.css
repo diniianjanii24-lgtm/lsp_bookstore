@@ -1,0 +1,84 @@
+/* ===== GLOBAL ===== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* ===== BOOK CARD ===== */
+.book-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.book-img {
+    height: 250px;
+    object-fit: cover;
+    width: 100%;
+}
+
+.book-price {
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+.book-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* ===== FLASH MESSAGE ===== */
+.flash-message {
+    animation: fadeOut 5s forwards;
+}
+
+@keyframes fadeOut {
+    0%   { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ===== CART TABLE ===== */
+.cart-table td {
+    vertical-align: middle;
+}
+
+.qty-input {
+    width: 60px;
+    text-align: center;
+}
+
+/* ===== CHECKOUT SUMMARY ===== */
+.order-summary {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* ===== ADMIN ===== */
+.admin-sidebar {
+    min-height: 100vh;
+}
+
+.table-actions .btn {
+    margin-right: 0.25rem;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .book-img {
+        height: 200px;
+    }
+}

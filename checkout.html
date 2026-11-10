@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookstore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+<main class="container my-4" id="main"></main>
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+
+App.layout(false);
+var main = document.getElementById('main');
+
+var cart = App.sess().cart;
+if (!Object.keys(cart).length) { App.setFlash('message', 'Keranjang belanja Anda kosong.'); App.redirect('cart.html'); return; }
+var total = App.cartTotal();
+var vals = { name: App.getUserName() || '', email: '', address: '', phone: '' };
+if (App.isLoggedIn()) {
+    var u = App.byId(App.db().users, App.getUserId());
+    if (u) { vals.name = u.name; vals.email = u.email; }
+}
+
+function render(errors) {
+    var items = Object.keys(cart).map(function (id) {
+        var it = cart[id];
+        return '<li class="list-group-item d-flex justify-content-between"><span>' + App.esc(it.title) + ' (x' + it.quantity + ')</span><span>' + App.rp(it.price * it.quantity) + '</span></li>';
+    }).join('');
+    main.innerHTML = '<div class="row"><div class="col-lg-8"><div class="card shadow-sm mb-4">' +
+        '<div class="card-header bg-primary text-white"><h4 class="mb-0"><i class="bi bi-credit-card"></i> Form Checkout</h4></div><div class="card-body">' +
+        App.alertList('danger', errors, false) +
+        '<form id="coForm" novalidate>' +
+        '<div class="mb-3"><label class="form-label">Nama Lengkap</label><input type="text" name="name" class="form-control" value="' + App.esc(vals.name) + '" required></div>' +
+        '<div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="' + App.esc(vals.email) + '" required></div>' +
+        '<div class="mb-3"><label class="form-label">Alamat Lengkap</label><textarea name="address" class="form-control" rows="3" placeholder="Masukkan alamat lengkap..." required>' + App.esc(vals.address) + '</textarea></div>' +
+        '<div class="mb-3"><label class="form-label">Nomor Telepon</label><input type="tel" name="phone" class="form-control" placeholder="08xx-xxxx-xxxx" value="' + App.esc(vals.phone) + '" required></div>' +
+        '<button type="submit" class="btn btn-success btn-lg w-100"><i class="bi bi-check-circle"></i> Buat Pesanan</button></form></div></div></div>' +
+        '<div class="col-lg-4"><div class="card shadow-sm order-summary"><div class="card-header"><h4 class="mb-0"><i class="bi bi-receipt"></i> Ringkasan Pesanan</h4></div>' +
+        '<div class="card-body"><ul class="list-group list-group-flush">' + items +
+        '<li class="list-group-item d-flex justify-content-between fw-bold mt-2"><span>Total:</span><span class="book-price fs-5">' + App.rp(total) + '</span></li></ul></div></div></div></div>';
+
+    document.getElementById('coForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = this, errs = [];
+        vals = { name: f.elements['name'].value.trim(), email: f.email.value.trim(), address: f.address.value.trim(), phone: f.phone.value.trim() };
+        if (!vals.name) errs.push('Nama lengkap wajib diisi.');
+        if (!vals.email) errs.push('Email wajib diisi.');
+        else if (!App.validEmail(vals.email)) errs.push('Format email tidak valid.');
+        if (!vals.address) errs.push('Alamat wajib diisi.');
+        if (!vals.phone) errs.push('Nomor telepon wajib diisi.');
+        if (errs.length) { render(errs); return; }
+
+        var d = App.db(), orderId = App.nextId('orders');
+        d.orders.push({ id: orderId, user_id: App.isLoggedIn() ? App.getUserId() : null, name: vals.name, email: vals.email,
+            address: vals.address, phone: vals.phone, total_amount: total, status: 'pending', created_at: new Date().toISOString() });
+        Object.keys(cart).forEach(function (bid) {
+            d.order_details.push({ id: App.nextId('order_details'), order_id: orderId, book_id: parseInt(bid, 10), quantity: cart[bid].quantity, price: cart[bid].price });
+        });
+        App.save();
+        App.sess().cart = {};
+        App.saveSess();
+        App.setFlash('message', 'Pesanan Anda berhasil dibuat! Nomor pesanan: ' + orderId);
+        App.redirect('index.html');
+    });
+}
+render([]);
+
+})();
+</script>
+</body>
+</html>

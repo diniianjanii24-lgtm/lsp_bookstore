@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Bookstore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+<div class="container-fluid my-4" id="main"></div>
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/app.js"></script>
+<script>
+(function () {
+if (!App.isAdmin()) { App.redirect("login.html"); return; }
+App.layout(true);
+var main = document.getElementById('main');
+
+var q = new URLSearchParams(location.search);
+var d = App.db();
+var badgeMap = { pending: 'warning', processing: 'info', shipped: 'primary', delivered: 'success' };
+function badge(s) { return '<span class="badge bg-' + (badgeMap[s] || 'secondary') + '">' + App.ucfirst(s) + '</span>'; }
+
+if (q.get('status') && q.get('id') && badgeMap[q.get('status')]) {
+    var o = App.byId(d.orders, parseInt(q.get('id'), 10));
+    if (o) { o.status = q.get('status'); App.save(); }
+}
+var header = null, detail = [];
+if (q.get('view') === 'detail' && q.get('id')) {
+    var oid = parseInt(q.get('id'), 10);
+    detail = d.order_details.filter(function (x) { return x.order_id === oid; });
+    header = App.byId(d.orders, oid);
+}
+var html = '<h1 class="mb-4"><i class="bi bi-receipt"></i> Kelola Pesanan</h1>';
+
+if (header) {
+    var total = 0;
+    var rows = detail.length ? detail.map(function (it, i) {
+        var bk = App.byId(d.books, it.book_id); total += it.price * it.quantity;
+        return '<tr><td>' + (i + 1) + '</td><td>' + App.esc(bk ? bk.title : '') + '</td><td class="text-end">' + it.quantity + '</td>' +
+            '<td class="text-end">' + App.rp(it.price) + '</td><td class="text-end">' + App.rp(it.price * it.quantity) + '</td></tr>';
+    }).join('') + '<tr class="table-active"><td colspan="4" class="fw-bold text-end">Total:</td><td class="fw-bold text-end">' + App.rp(total) + '</td></tr>'
+        : '<tr><td colspan="5" class="text-center text-muted">Tidak ada detail pesanan.</td></tr>';
+    html += '<div class="card shadow-sm mb-4"><div class="card-header d-flex justify-content-between"><h5 class="mb-0">Pesanan #' + header.id + '</h5>' +
+        '<a href="orders.html" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a></div><div class="card-body">' +
+        '<div class="row mb-3"><div class="col-md-6"><h6>Data Pemesan</h6>' +
+        '<p class="mb-1"><strong>Nama:</strong> ' + App.esc(header.name) + '</p><p class="mb-1"><strong>Email:</strong> ' + App.esc(header.email) + '</p>' +
+        '<p class="mb-1"><strong>Telepon:</strong> ' + App.esc(header.phone) + '</p><p class="mb-0"><strong>Alamat:</strong> ' + App.nl2br(header.address) + '</p></div>' +
+        '<div class="col-md-6 text-md-end"><h6>Info Pesanan</h6><p class="mb-1"><strong>Tanggal:</strong> ' + App.fmtDate(header.created_at, true) + '</p>' +
+        '<p class="mb-1"><strong>Status:</strong> ' + badge(header.status) + '</p><p class="mb-0"><strong>Total:</strong> ' + App.rp(header.total_amount) + '</p></div></div>' +
+        '<h6 class="mt-4">Daftar Buku</h6><table class="table table-bordered"><thead class="table-light"><tr><th>#</th><th>Buku</th><th class="text-end">Qty</th><th class="text-end">Harga</th><th class="text-end">Subtotal</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<h6 class="mt-4">Ubah Status</h6><div class="d-flex gap-2">' +
+        ['pending', 'processing', 'shipped', 'delivered'].map(function (s) {
+            return '<a href="orders.html?status=' + s + '&id=' + header.id + '" class="btn btn-sm btn-outline-secondary">' + App.ucfirst(s) + '</a>';
+        }).join('') + '</div></div></div>';
+} else {
+    var orders = d.orders.slice().sort(function (a, b) { return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : b.id - a.id; });
+    html += '<div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>#</th><th>Pemesan</th><th>Email</th><th class="text-end">Total</th><th>Status</th><th>Tanggal</th><th class="text-center">Aksi</th></tr></thead><tbody>' +
+        (orders.length ? orders.map(function (o, i) {
+            return '<tr><td>' + (i + 1) + '</td><td>' + App.esc(o.name) + '</td><td>' + App.esc(o.email) + '</td><td class="text-end">' + App.rp(o.total_amount) + '</td>' +
+                '<td>' + badge(o.status) + '</td><td>' + App.fmtDate(o.created_at, false) + '</td><td class="text-center">' +
+                '<a href="orders.html?view=detail&id=' + o.id + '" class="btn btn-sm btn-outline-primary" title="Lihat Detail"><i class="bi bi-eye"></i></a></td></tr>';
+        }).join('') : '<tr><td colspan="7" class="text-center text-muted">Belum ada pesanan.</td></tr>') + '</tbody></table></div>';
+}
+main.innerHTML = html;
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookstore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+<main class="container my-4" id="main"></main>
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+
+App.layout(false);
+var main = document.getElementById('main');
+
+var cart = App.sess().cart;
+var ids = Object.keys(cart);
+var html = '<h1 class="mb-4"><i class="bi bi-cart3"></i> Keranjang Belanja</h1>';
+if (!ids.length) {
+    html += '<div class="text-center py-5"><i class="bi bi-cart display-1 text-muted"></i>' +
+        '<p class="text-muted mt-3">Keranjang belanja Anda kosong.</p>' +
+        '<a href="index.html" class="btn btn-primary"><i class="bi bi-arrow-left"></i> Lanjutkan Belanja</a></div>';
+} else {
+    html += '<div class="table-responsive"><table class="table table-hover align-middle cart-table"><thead class="table-light"><tr>' +
+        '<th scope="col">#</th><th scope="col">Buku</th><th scope="col">Harga</th><th scope="col">Jumlah</th><th scope="col">Subtotal</th><th scope="col" class="text-end">Aksi</th></tr></thead><tbody>';
+    ids.forEach(function (id, i) {
+        var it = cart[id];
+        html += '<tr><td>' + (i + 1) + '</td><td><strong>' + App.esc(it.title) + '</strong></td><td>' + App.rp(it.price) + '</td>' +
+            '<td><input type="number" class="form-control qty-input" data-book-id="' + id + '" value="' + it.quantity + '" min="1" style="max-width: 80px;"></td>' +
+            '<td>' + App.rp(it.price * it.quantity) + '</td><td class="text-end">' +
+            '<button class="btn btn-sm btn-outline-danger remove-from-cart" data-book-id="' + id + '"><i class="bi bi-trash"></i> Hapus</button></td></tr>';
+    });
+    html += '<tr class="table-active"><td colspan="4" class="fw-bold text-end">Total:</td>' +
+        '<td colspan="2" class="fw-bold fs-5 book-price">' + App.rp(App.cartTotal()) + '</td></tr></tbody></table></div>' +
+        '<div class="d-flex justify-content-between mt-4"><a href="index.html" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Lanjutkan Belanja</a>' +
+        '<a href="checkout.html" class="btn btn-primary btn-lg"><i class="bi bi-credit-card"></i> Checkout</a></div>';
+}
+main.innerHTML = html;
+
+main.querySelectorAll('.qty-input').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+        var qty = parseInt(this.value, 10) || 1;
+        if (qty < 1) qty = 1;
+        var c = App.sess().cart[this.dataset.bookId];
+        if (c) { c.quantity = qty; App.saveSess(); }
+        location.reload();
+    });
+});
+main.querySelectorAll('.remove-from-cart').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (confirm('Apakah Anda yakin ingin menghapus buku ini dari keranjang?')) {
+            delete App.sess().cart[this.dataset.bookId];
+            App.saveSess();
+            location.reload();
+        }
+    });
+});
+
+})();
+</script>
+</body>
+</html>
